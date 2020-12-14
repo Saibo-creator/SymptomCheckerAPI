@@ -1,0 +1,20 @@
+{
+  "Elevated blood pressure": "SBP",
+  "Visible blood (red) in urine": "GrossHematuria",
+  "Red blood cells detected (test) in urine.": "MicroscopicHematuriaRBCs",
+  "Foamy or bublly urine.": "FoamyUrine",
+  "Protein in urine.": "Proteinuria",
+  "Burning with urination.": "BurningWithUrination",
+  "Straining on urination.": "UrinationRelieves",
+  "Feeling of not empyting bladder.": "NonEmptyBladder",
+  "Headache.": "HeadacheIntensity",
+  "Cough.": "SeverityCough",
+  "Sore throat.": "SoreThroatROS",
+  "Chest pain.": "ChestPainSeverity",
+  "Feeling like vomiting or vomiting.": "Vomiting",
+  "Red stools.": "LowerGIBleedSx",
+  "Black stools.": "LowerGIBleedSx",
+  "Diarrhea": "DiarrheaSx",
+  "Constipation": "Constipation",
+  "Abnormal vaginal discharge": "FemaleDCSx"
+}

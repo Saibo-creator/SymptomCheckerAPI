@@ -1,3 +1,4 @@
+import okhttp3.OkHttpClient;
 import org.json.JSONObject;
 
 import java.io.*;
@@ -9,6 +10,8 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Random;
 
@@ -20,11 +23,15 @@ public final class EndlessMedicalAPI {
     private static String SessionID="";
     private static HttpClient client=null;
     private static JSONArray diseaseDetails = null;
+    private static JSONObject initFeatures = null;
+    private static JSONArray symptomsQA = null;
 
 
     public EndlessMedicalAPI() throws URISyntaxException {
         client=HttpClient.newHttpClient();
         diseaseDetails=loadDiseaseDetails();
+        initFeatures = loadInitFeatures();
+        symptomsQA = loadSymptomsQA();
     }
 
     private static HttpRequest buildPostRequest(URI url,String str){
@@ -36,7 +43,6 @@ public final class EndlessMedicalAPI {
         return HttpRequest.newBuilder().uri(url).build();
 
     }
-
 
 
 
@@ -59,11 +65,66 @@ public final class EndlessMedicalAPI {
         System.out.println(response.body());
     }
 
+    public static JSONObject loadInitFeatures() throws URISyntaxException {
+
+        String fileName = "InitFeatures.json";
+
+        System.out.println("getResourceAsStream : " + fileName);
+        File file = getFileFromResource(fileName);
+        String raw_text = getJson(file);
+        initFeatures = new JSONObject(raw_text);
+        return initFeatures;
+
+    }
+
+    public static JSONArray loadSymptomsQA() throws URISyntaxException {
+
+        String fileName = "SymptomsQA.json";
+        System.out.println("getResourceAsStream : " + fileName);
+        File file = getFileFromResource(fileName);
+        String raw_text = getJson(file);
+        symptomsQA = new JSONArray(raw_text);
+        return symptomsQA;
+
+    }
+    private static JSONArray loadDiseaseDetails() throws URISyntaxException {
+
+        String fileName = "Diseases.json";
+
+        System.out.println("getResourceAsStream : " + fileName);
+        File file = getFileFromResource(fileName);
+        String diseases = getJson(file);
+        JSONArray diseaseDetails = new JSONArray(diseases);
+        return diseaseDetails;
+    }
+
+    public static JSONObject retrieveQuestion(String feature){
+        for (int i = 0 ; i < symptomsQA.length(); i++) {
+            JSONObject obj = symptomsQA.getJSONObject(i);
+            String A = obj.getString("name");
+            if (A.equals(feature)) {
+                return obj;
+            }
+        }
+        throw new RuntimeException("No Question about the given feature is found");
+    }
+
     public static void updateFeature(String key,String value) throws IOException, InterruptedException {
         URI url=URI.create(String.format(API_ENDPOINT + "/UpdateFeature?SessionID=%s&name=%s&value=%s", SessionID, key,value));
         HttpRequest updateFeatureRequest=buildPostRequest(url,"");
         HttpResponse<String> response = client.send(updateFeatureRequest,HttpResponse.BodyHandlers.ofString());
         System.out.println(response.body());
+    }
+
+    public static JSONArray getSuggestedFeatures_PatientProvided(int  num_disease) throws IOException, InterruptedException {
+        URI url=URI.create(String.format(API_ENDPOINT + "/GetSuggestedFeatures_PatientProvided?SessionID=%s&TopDiseasesToTake=%s",SessionID,num_disease));
+        HttpRequest request =buildGetRequest(url);
+        HttpResponse<String> response = client.send(request,HttpResponse.BodyHandlers.ofString());
+        String responseContent=response.body();
+        JSONObject obj = new JSONObject(responseContent);
+        JSONArray SuggestedFeatures = obj.getJSONArray("SuggestedFeatures");
+        return SuggestedFeatures;
+
     }
 
     public static JSONArray analyze() throws IOException, InterruptedException {
@@ -77,15 +138,7 @@ public final class EndlessMedicalAPI {
     }
 
 
-    public static void parseAnalysis(JSONArray analysis){
 
-
-        for (int i = 0; i < analysis.length(); i++)
-        {
-//            HashMap object = analysis.getJSONObject(i).map;
-//            System.out.println(object);
-        }
-    }
 
     public static JSONArray getSuggestedTests(int  num_disease) throws IOException, InterruptedException {
         URI url=URI.create(String.format(API_ENDPOINT + "/GetSuggestedTests?SessionID=%s&TopDiseasesToTake=%s",SessionID,num_disease));
@@ -120,17 +173,17 @@ public final class EndlessMedicalAPI {
         throw new RuntimeException("Disease Detail not Found");
     }
 
-    private static JSONArray loadDiseaseDetails() throws URISyntaxException {
 
-        String fileName = "Diseases.json";
 
-        System.out.println("getResourceAsStream : " + fileName);
-        File file = getFileFromResource(fileName);
-        String diseases = getJson(file);
-        JSONArray diseaseDetails = new JSONArray(diseases);
-        return diseaseDetails;
+    private static void printQuestion(String featureName){
+        JSONObject question = retrieveQuestion(featureName);
+        System.out.println("########### Please answer this question : ##########\n"+question.get("laytext").toString());
+        JSONArray choices= (JSONArray) question.get("choices");
+        printJSONArray(choices,"laytext");
+//        System.out.println("########### choices : ##########\n"+question.get("choices").toString());
     }
 
+                                     // JSON IO Methods
     private static String getJson(File file) {
         String jsonStr = "";
         try {
@@ -176,7 +229,27 @@ public final class EndlessMedicalAPI {
 
     }
 
+    private static void printJSONArray(JSONArray analysis, String key){
 
+
+        for (int i = 0; i < analysis.length(); i++)
+        {
+            JSONObject object = analysis.getJSONObject(i);
+            System.out.println(object.get(key));
+        }
+    }
+
+    // User Simulating methods
+
+    private static String getRandomInitFeature(){
+
+        List<String> keysAsArray = new ArrayList<>(initFeatures.keySet());
+        Random r = new Random();
+        String randomKey=keysAsArray.get(r.nextInt(keysAsArray.size()));
+        String featureName= (String) initFeatures.get(randomKey);
+
+        return featureName;
+    }
 
     public static void main(String[] args) throws IOException, InterruptedException, URISyntaxException {
 
@@ -184,29 +257,53 @@ public final class EndlessMedicalAPI {
         endlessMedicalAPI.initSession();
         endlessMedicalAPI.acceptTerms();
 
-
-
         int iAge = new Random().nextInt(100)+18;
 
         endlessMedicalAPI.updateFeature("age",Integer.toString(iAge));
         int iGender = new Random().nextFloat() < 0.5f ? 2 : 3; // 2 - Male, 3 - Female
         endlessMedicalAPI.updateFeature("gender",Integer.toString(iGender));
-        endlessMedicalAPI.updateFeature("SeverityCough","4");
+//        endlessMedicalAPI.updateFeature("SeverityCough","4");
         float temp = new Random().nextFloat()*4+36;
         endlessMedicalAPI.updateFeature("Temp",Float.toString(temp));
 
-        JSONArray analysis=endlessMedicalAPI.analyze();
-        System.out.println("########### Analysis report: ##########\n"+analysis.toString(4));
-        String topDiseaseName= (String) analysis.getJSONObject(0).toMap().values().toArray()[0];
+        int pulseRate = new Random().nextInt(50)+50;
+        endlessMedicalAPI.updateFeature("HeartRate",Integer.toString(pulseRate));
 
-//        JSONObject diseaseDetail=getDiseaseDetails()
-//        parseAnalysis(analysis);
+
+
+        System.out.println("########### Please pick up some symptoms : ##########\n"+endlessMedicalAPI.initFeatures.toString(4));
+
+
+        for (int i=0;i<3;i++){
+            String randomFeature = (String) endlessMedicalAPI.getRandomInitFeature();
+            System.out.println(randomFeature);
+            printQuestion(randomFeature);
+
+            endlessMedicalAPI.updateFeature(randomFeature,Integer.toString(2));
+        }
+
+
+        // return to init features interface
+        for (int i=0;i<3;i++) {
+            JSONArray SuggestedFeatures_PatientProvided = getSuggestedFeatures_PatientProvided(10);
+
+        }
+        
+
+        JSONArray analysis=endlessMedicalAPI.analyze();
+        //Analysis is a JSONArray composed of 10 object,e.g. {"Sepsis": "0.08117125597385819"},
+        System.out.println("########### Analysis report: ##########\n"+analysis.toString(4));
+        String topDiseaseName= (String) analysis.getJSONObject(0).toMap().keySet().toArray()[0];
+        System.out.println("########### Top Desease : ##########\n"+topDiseaseName);
+
+        JSONObject diseaseDetail=getDiseaseDetails(topDiseaseName);
+        System.out.println("########### Desease Detail: ##########\n"+diseaseDetail.toString(4));
 
         JSONArray tests=getSuggestedTests(10);
         System.out.println("########### Suggested Tests : ########### \n"+tests.toString(4));
 
-        JSONArray specializations=getSuggestedSpecializations(10);
-        System.out.println("########### Suggested Specializations: ########### \n"+specializations.toString(4));
+//        JSONArray specializations=getSuggestedSpecializations(10);
+//        System.out.println("########### Suggested Specializations: ########### \n"+specializations.toString(4));
 
 
     }
