@@ -1,4 +1,4 @@
-import okhttp3.OkHttpClient;
+import okhttp3.*;
 import org.json.JSONObject;
 
 import java.io.*;
@@ -19,7 +19,7 @@ import org.json.*;
 public final class EndlessMedicalAPI {
     private static final String API_ENDPOINT ="http://api.endlessmedical.com/v1/dx";
     private static String SessionID="";
-    private static final HttpClient client=HttpClient.newHttpClient();;
+    private static final OkHttpClient client = new OkHttpClient();
     private static JSONArray diseaseDetails = null;
     private static JSONObject initFeatures = null;
     private static JSONArray symptomsQA = null;
@@ -47,35 +47,46 @@ public final class EndlessMedicalAPI {
         }
     }
 
-    private static HttpRequest buildPostRequest(URI url,String str){
-        return HttpRequest.newBuilder().uri(url).POST(HttpRequest.BodyPublishers.ofString(str)).build();
-
+    private static Request buildPostRequest(URI url, String str){
+        RequestBody body = RequestBody.create(null,str);
+        return new Request.Builder()
+                .url(HttpUrl.get(url))
+                .post(body)
+                .build();
     }
 
-    private static HttpRequest buildGetRequest(URI url){
-        return HttpRequest.newBuilder().uri(url).build();
-
+    private static Request buildGetRequest(URI url){
+        return new Request.Builder().url(HttpUrl.get(url)).build();
     }
 
 
 
     public static void initSession() throws IOException, InterruptedException {
         URI url=URI.create(API_ENDPOINT + "/InitSession");
-        HttpRequest request =buildGetRequest(url);
-        HttpResponse<String> response = client.send(request,HttpResponse.BodyHandlers.ofString());
-        String responseContent=response.body();
-        JSONObject obj = new JSONObject(responseContent);
-        SessionID = obj.getString("SessionID");
-        System.out.println(response.body());
-        // {"status":"ok","SessionID":"7Pw8xlJplwzyQc7J"}
+        Request request =buildGetRequest(url);
+        Response response = client.newCall(request).execute();
+        if (response.isSuccessful()) {
+            String responseContent=response.body().string();
+            JSONObject obj = new JSONObject(responseContent);
+            SessionID = obj.getString("SessionID");
+            System.out.println(responseContent);
+            // {"status":"ok","SessionID":"7Pw8xlJplwzyQc7J"}
+        } else {
+            throw new IOException("Unexpected code " + response);
+        }
     }
 
 
     public static void acceptTerms() throws IOException, InterruptedException {
         URI url=URI.create(String.format(API_ENDPOINT + "/AcceptTermsOfUse?SessionID=%s&passphrase=I+have+read,+understood+and+I+accept+and+agree+to+comply+with+the+Terms+of+Use+of+EndlessMedicalAPI+and+Endless+Medical+services.+The+Terms+of+Use+are+available+on+endlessmedical.com", SessionID));
-        HttpRequest acceptTermsRequest=buildPostRequest(url,"");
-        HttpResponse<String> response = client.send(acceptTermsRequest,HttpResponse.BodyHandlers.ofString());
-        System.out.println(response.body());
+        RequestBody body = RequestBody.create(null,"");
+        Request acceptTermsRequest = new Request.Builder()
+                .url(HttpUrl.get(url))
+                .post(body)
+                .build();
+
+        Response response = client.newCall(acceptTermsRequest).execute();
+        System.out.println(response.body().string());
     }
 
     public static JSONObject loadInitFeatures() throws URISyntaxException {
@@ -124,27 +135,31 @@ public final class EndlessMedicalAPI {
 
     public static void updateFeature(String key,String value) throws IOException, InterruptedException {
         URI url=URI.create(String.format(API_ENDPOINT + "/UpdateFeature?SessionID=%s&name=%s&value=%s", SessionID, key,value));
-        HttpRequest updateFeatureRequest=buildPostRequest(url,"");
-        HttpResponse<String> response = client.send(updateFeatureRequest,HttpResponse.BodyHandlers.ofString());
-        System.out.println(response.body());
+        RequestBody body = RequestBody.create(null,"");
+        Request updateFeatureRequest = new Request.Builder()
+                .url(HttpUrl.get(url))
+                .post(body)
+                .build();
+        Response response = client.newCall(updateFeatureRequest).execute();
+        System.out.println(response.body().string());
     }
 
     public static JSONArray getSuggestedFeatures_PatientProvided(int  num_disease) throws IOException, InterruptedException {
         URI url=URI.create(String.format(API_ENDPOINT + "/GetSuggestedFeatures_PatientProvided?SessionID=%s&TopDiseasesToTake=%s",SessionID,num_disease));
-        HttpRequest request =buildGetRequest(url);
-        HttpResponse<String> response = client.send(request,HttpResponse.BodyHandlers.ofString());
-        String responseContent=response.body();
+        Request request = new Request.Builder().url(HttpUrl.get(url)).build();
+        Response response = client.newCall(request).execute();
+        String responseContent=response.body().string();
         JSONObject obj = new JSONObject(responseContent);
-        currentSuggestedFeatures = obj.getJSONArray("SuggestedFeatures");
-        return currentSuggestedFeatures;
+        JSONArray SuggestedFeatures = obj.getJSONArray("SuggestedFeatures");
+        return SuggestedFeatures;
 
     }
 
     public static JSONArray analyze() throws IOException, InterruptedException {
         URI url=URI.create(String.format(API_ENDPOINT + "/Analyze?SessionID=%s", SessionID));
-        HttpRequest request =buildGetRequest(url);
-        HttpResponse<String> response = client.send(request,HttpResponse.BodyHandlers.ofString());
-        String responseContent=response.body();
+        Request request =buildGetRequest(url);
+        Response response = client.newCall(request).execute();
+        String responseContent=response.body().string();
         JSONObject obj = new JSONObject(responseContent);
         JSONArray analysis = obj.getJSONArray("Diseases");
         return analysis;
@@ -155,24 +170,22 @@ public final class EndlessMedicalAPI {
 
     public static JSONArray getSuggestedTests(int  num_disease) throws IOException, InterruptedException {
         URI url=URI.create(String.format(API_ENDPOINT + "/GetSuggestedTests?SessionID=%s&TopDiseasesToTake=%s",SessionID,num_disease));
-        HttpRequest request =buildGetRequest(url);
-        HttpResponse<String> response = client.send(request,HttpResponse.BodyHandlers.ofString());
-        String responseContent=response.body();
+        Request request =buildGetRequest(url);
+        Response response = client.newCall(request).execute();
+        String responseContent=response.body().string();
         JSONObject obj = new JSONObject(responseContent);
         JSONArray tests = obj.getJSONArray("Tests");
         return tests;
-
     }
 
     public static JSONArray getSuggestedSpecializations(int  num_disease) throws IOException, InterruptedException {
         URI url=URI.create(String.format(API_ENDPOINT + "/GetSuggestedSpecializations?SessionID=%s&TopDiseasesToTake=%s",SessionID,num_disease));
-        HttpRequest request =buildGetRequest(url);
-        HttpResponse<String> response = client.send(request,HttpResponse.BodyHandlers.ofString());
-        String responseContent=response.body();
+        Request request =buildGetRequest(url);
+        Response response = client.newCall(request).execute();
+        String responseContent=response.body().string();
         JSONObject obj = new JSONObject(responseContent);
         JSONArray specializations = obj.getJSONArray("SuggestedSpecializations");
         return specializations;
-
     }
 
     public static JSONObject getDiseaseDetails(String diseaseFullname){
@@ -325,9 +338,9 @@ public final class EndlessMedicalAPI {
             JSONArray tests=getSuggestedTests(10);
             System.out.println("########### Suggested Tests : ########### \n"+tests.toString(4));
 
-    //        JSONArray specializations=getSuggestedSpecializations(10);
-    //        System.out.println("########### Suggested Specializations: ########### \n"+specializations.toString(4));
-            // return to init features interface
+            JSONArray specializations=getSuggestedSpecializations(10);
+            System.out.println("########### Suggested Specializations: ########### \n"+specializations.toString(4));
+
         }else{
             System.out.println("Internet is not available");
         }
