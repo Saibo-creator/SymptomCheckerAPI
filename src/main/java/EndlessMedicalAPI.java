@@ -204,9 +204,13 @@ public final class EndlessMedicalAPI {
     private static void printQuestion(String featureName){
         JSONObject question = retrieveQuestion(featureName);
         System.out.println("########### Please answer this question : ##########\n"+question.get("laytext").toString());
-        JSONArray choices= (JSONArray) question.get("choices");
-        printJSONArray(choices,"laytext");
-        System.out.println("########### choices : ##########\n"+question.get("choices").toString());
+        if (question.get("type").equals("categorical")) {
+            JSONArray choices = (JSONArray) question.get("choices");
+            printJSONArray(choices, "laytext");
+            System.out.println("########### choices : ##########\n" + question.get("choices").toString());
+        }else{
+            System.out.println(String.format("########### A valid value should be between %s and %s : ##########\n", question.get("max"),question.get("min")));
+        }
     }
 
                                      // JSON IO Methods
