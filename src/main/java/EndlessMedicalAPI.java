@@ -25,6 +25,8 @@ public final class EndlessMedicalAPI {
     private static JSONArray diseaseDetails = null;
     private static JSONObject initFeatures = null;
     private static JSONArray symptomsQA = null;
+    private static JSONArray currentSuggestedFeatures = null;
+//    public static int diagn_round=0;
 
 
     public EndlessMedicalAPI() throws URISyntaxException {
@@ -122,8 +124,8 @@ public final class EndlessMedicalAPI {
         HttpResponse<String> response = client.send(request,HttpResponse.BodyHandlers.ofString());
         String responseContent=response.body();
         JSONObject obj = new JSONObject(responseContent);
-        JSONArray SuggestedFeatures = obj.getJSONArray("SuggestedFeatures");
-        return SuggestedFeatures;
+        currentSuggestedFeatures = obj.getJSONArray("SuggestedFeatures");
+        return currentSuggestedFeatures;
 
     }
 
@@ -180,7 +182,7 @@ public final class EndlessMedicalAPI {
         System.out.println("########### Please answer this question : ##########\n"+question.get("laytext").toString());
         JSONArray choices= (JSONArray) question.get("choices");
         printJSONArray(choices,"laytext");
-//        System.out.println("########### choices : ##########\n"+question.get("choices").toString());
+        System.out.println("########### choices : ##########\n"+question.get("choices").toString());
     }
 
                                      // JSON IO Methods
@@ -257,6 +259,8 @@ public final class EndlessMedicalAPI {
         endlessMedicalAPI.initSession();
         endlessMedicalAPI.acceptTerms();
 
+        System.out.println("\n\n\n\n Submit inital features:age,hr");
+
         int iAge = new Random().nextInt(100)+18;
 
         endlessMedicalAPI.updateFeature("age",Integer.toString(iAge));
@@ -269,12 +273,13 @@ public final class EndlessMedicalAPI {
         int pulseRate = new Random().nextInt(50)+50;
         endlessMedicalAPI.updateFeature("HeartRate",Integer.toString(pulseRate));
 
-
+        System.out.println("\n\n\n\n,preliminary diagnosis");
 
         System.out.println("########### Please pick up some symptoms : ##########\n"+endlessMedicalAPI.initFeatures.toString(4));
 
 
         for (int i=0;i<3;i++){
+            System.out.println(String.format("\n\nFeature No%s",i ));
             String randomFeature = (String) endlessMedicalAPI.getRandomInitFeature();
             System.out.println(randomFeature);
             printQuestion(randomFeature);
@@ -282,13 +287,20 @@ public final class EndlessMedicalAPI {
             endlessMedicalAPI.updateFeature(randomFeature,Integer.toString(2));
         }
 
+        System.out.println("\n\n\n\n Further Diagnosis");
 
         // return to init features interface
-        for (int i=0;i<3;i++) {
+        for (int i=1;i<=3;i++) {
+            System.out.println(String.format("\n\n\n\nRound%s",i ));
+            endlessMedicalAPI.analyze();
             JSONArray SuggestedFeatures_PatientProvided = getSuggestedFeatures_PatientProvided(10);
-
+            System.out.println(SuggestedFeatures_PatientProvided);
+            String next_feature=SuggestedFeatures_PatientProvided.getJSONArray(0).getString(0);
+            printQuestion(next_feature);
+            endlessMedicalAPI.updateFeature(next_feature,Integer.toString(2));
         }
-        
+
+        System.out.println("\n\n\n\n Analysis Step \n\n ");
 
         JSONArray analysis=endlessMedicalAPI.analyze();
         //Analysis is a JSONArray composed of 10 object,e.g. {"Sepsis": "0.08117125597385819"},
@@ -304,6 +316,7 @@ public final class EndlessMedicalAPI {
 
 //        JSONArray specializations=getSuggestedSpecializations(10);
 //        System.out.println("########### Suggested Specializations: ########### \n"+specializations.toString(4));
+        // return to init features interface
 
 
     }
