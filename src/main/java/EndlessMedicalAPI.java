@@ -19,7 +19,7 @@ import org.json.*;
 public final class EndlessMedicalAPI {
     private static final String API_ENDPOINT ="http://api.endlessmedical.com/v1/dx";
     private static String SessionID="";
-    private static HttpClient client=null;
+    private static final HttpClient client=HttpClient.newHttpClient();;
     private static JSONArray diseaseDetails = null;
     private static JSONObject initFeatures = null;
     private static JSONArray symptomsQA = null;
@@ -28,7 +28,6 @@ public final class EndlessMedicalAPI {
 
 
     public EndlessMedicalAPI() throws URISyntaxException {
-        client=HttpClient.newHttpClient();
         diseaseDetails=loadDiseaseDetails();
         initFeatures = loadInitFeatures();
         symptomsQA = loadSymptomsQA();
